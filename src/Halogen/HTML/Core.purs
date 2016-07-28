@@ -23,6 +23,7 @@ module Halogen.HTML.Core
 
   , PropName
   , propName
+  , propNames
   , runPropName
 
   , AttrName
@@ -46,6 +47,7 @@ import Data.ExistsR (ExistsR, mkExistsR, runExistsR)
 import Data.Maybe (Maybe(..))
 import Data.Traversable (traverse)
 import Data.Tuple (Tuple(..))
+import Data.Array as Array
 
 import DOM.HTML.Types (HTMLElement)
 
@@ -164,14 +166,18 @@ runTagName (TagName s) = s
 -- |
 -- | The phantom type `value` describes the type of value which this property
 -- | requires.
-newtype PropName value = PropName String
+newtype PropName value = PropName (Array String)
 
 -- | Create an attribute name
 propName :: forall value. String -> PropName value
-propName = PropName
+propName = PropName <<< Array.singleton
+
+-- | Create a possibly nested property name; e.g. style.opacity, which would be represented as propNames ["style", "opacity"]
+propNames :: forall value. Array String -> PropName value
+propNames = PropName
 
 -- | Unpack an attribute name
-runPropName :: forall value. PropName value -> String
+runPropName :: forall value. PropName value -> Array String
 runPropName (PropName s) = s
 
 -- | A type-safe wrapper for attribute names.

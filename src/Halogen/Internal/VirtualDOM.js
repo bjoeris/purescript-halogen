@@ -9,26 +9,35 @@ var vpatch = require("virtual-dom/patch");
 var VText = require("virtual-dom/vnode/vtext");
 var VirtualNode = require("virtual-dom/vnode/vnode");
 var SoftSetHook = require("virtual-dom/virtual-hyperscript/hooks/soft-set-hook");
+var attributeHook = require('virtual-dom/virtual-hyperscript/hooks/attribute-hook');
 
 // jshint maxparams: 2
-exports.prop = function (key, value) {
-  var props = {};
-  props[key] = value;
-  return props;
+exports.prop = function (keys, value) {
+  return function(result) {
+    var target = result, child;
+    for (var i=0; i<keys.length-1; ++i) {
+      child = target[keys[i]] || {};
+      target[keys[i]] = child;
+      target = child;
+    }
+    target[keys[keys.length-1]] = value;
+  };
 };
 
 // jshint maxparams: 2
 exports.attr = function (key, value) {
-  var props = { attributes: {} };
-  props.attributes[key] = value;
-  return props;
+  return function(result) {
+    var attrs = result.attributes || {};
+    attrs[key] = value;
+    result.attributes = attrs;
+  };
 };
 
-// jshint maxparams: 2
+// jshint maxparams: 3
 exports.attrNS = function (ns, key, value) {
-  var props = {};
-  props[key] = attributeHook(ns, value);
-  return props;
+  return function(result) {
+    result[key] = attributeHook(ns, value);
+  };
 };
 
 function HandlerHook (key, f) {
@@ -49,9 +58,10 @@ HandlerHook.prototype = {
 
 // jshint maxparams: 2
 exports.handlerProp = function (key, f) {
-  var props = {};
-  props["halogen-hook-" + key] = new HandlerHook(key, f);
-  return props;
+  const hook = new HandlerHook(key, f);
+  return function(result) {
+    result["halogen-hook-" + key] = hook;
+  };
 };
 
 exports.refPropImpl = function (nothing) {
@@ -78,7 +88,10 @@ exports.refPropImpl = function (nothing) {
     };
 
     return function (f) {
-      return { "halogen-ref": new RefHook(f) };
+      const hook = new RefHook(f); 
+      return function(result) {
+        result["halogen-ref"] = hook;
+      };
     };
   };
 };
@@ -123,31 +136,34 @@ exports.widget = function (tree) {
 
 exports.concatProps = function () {
   // jshint maxparams: 2
-  var hOP = Object.prototype.hasOwnProperty;
-  var copy = function (props, result) {
-    for (var key in props) {
-      if (hOP.call(props, key)) {
-        if (key === "attributes") {
-          var attrs = props[key];
-          var resultAttrs = result[key] || (result[key] = {});
-          for (var attr in attrs) {
-            if (hOP.call(attrs, attr)) {
-              resultAttrs[attr] = attrs[attr];
-            }
-          }
-        } else {
-          result[key] = props[key];
-        }
-      }
-    }
-    return result;
-  };
+  // var hOP = Object.prototype.hasOwnProperty;
+  // var copy = function (props, result) {
+  //   for (var key in props) {
+  //     if (hOP.call(props, key)) {
+  //       if (key === "attributes") {
+  //         var attrs = props[key];
+  //         var resultAttrs = result[key] || (result[key] = {});
+  //         for (var attr in attrs) {
+  //           if (hOP.call(attrs, attr)) {
+  //             resultAttrs[attr] = attrs[attr];
+  //           }
+  //         }
+  //       } else {
+  //         result[key] = props[key];
+  //       }
+  //     }
+  //   }
+  //   return result;
+  // };
   return function (p1, p2) {
-    return copy(p2, copy(p1, {}));
+    return function(result) {
+      p1(result);
+      p2(result);
+    }
   };
 }();
 
-exports.emptyProps = {};
+exports.emptyProps = function (result) {};
 
 exports.createElement = function (vtree) {
   return vcreateElement(vtree);
@@ -176,10 +192,12 @@ exports.vnode = function (namespace) {
     return function (key) {
       return function (props) {
         return function (children) {
-          if (name === "input" && props.value !== undefined) {
-            props.value = new SoftSetHook(props.value);
+          var propsObj = {};
+          props(propsObj);
+          if (name === "input" && propsObj.value !== undefined) {
+            propsObj.value = new SoftSetHook(propsObj.value);
           }
-          return new VirtualNode(name, props, children, key, namespace);
+          return new VirtualNode(name, propsObj, children, key, namespace);
         };
       };
     };
