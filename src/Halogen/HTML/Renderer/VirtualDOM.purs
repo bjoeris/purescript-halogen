@@ -12,7 +12,7 @@ import Control.Monad.Eff.Exception (throwException)
 import Data.Exists (runExists)
 import Data.ExistsR (runExistsR)
 import Data.Foldable (foldl, foldMap)
-import Data.Function.Uncurried (runFn2)
+import Data.Function.Uncurried (runFn2, runFn3)
 import Data.Lazy (force)
 import Data.Maybe (Maybe(..), maybe)
 import Data.Monoid (mempty)
@@ -59,8 +59,7 @@ renderProp :: forall f eff. (forall i. f i -> Aff (HalogenEffects eff) i) -> Pro
 renderProp _ (Prop e) = runExists (\(PropF key value _) ->
   runFn2 V.prop (runPropName key) value) e
 renderProp _ (Attr ns name value) =
-  let attrName = maybe "" (\ns' -> runNamespace ns' <> ":") ns <> runAttrName name
-  in runFn2 V.attr attrName value
+  runFn3 V.attrNS (toNullable $ runNamespace <$> ns) (runAttrName name) value
 renderProp dr (Handler e) = runExistsR (\(HandlerF name k) ->
   runFn2 V.handlerProp (runEventName name) \ev -> handleAff $ runEventHandler ev (k ev) >>= maybe (pure unit) dr) e
 renderProp dr (Ref f) = V.refProp (handleAff <<< dr <<< f)

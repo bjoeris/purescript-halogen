@@ -7,6 +7,7 @@ module Halogen.Internal.VirtualDOM
   , Props()
   , prop
   , attr
+  , attrNS
   , handlerProp
   , refProp
   , widget
@@ -24,7 +25,7 @@ import Control.Monad.Eff (Eff)
 import Data.Monoid (class Monoid)
 import Data.Maybe (Maybe(..))
 import Data.Nullable (Nullable)
-import Data.Function.Uncurried (Fn2, runFn2)
+import Data.Function.Uncurried (Fn2, runFn2, Fn3)
 
 import DOM (DOM)
 import DOM.HTML.Types (HTMLElement)
@@ -41,9 +42,11 @@ data Patch
 data Props
 
 -- | Create a property from a key/value pair.
-foreign import prop :: forall value. Fn2 String value Props
+foreign import prop :: forall value. Fn2 (Array String) value Props
 
 foreign import attr :: Fn2 String String Props
+
+foreign import attrNS :: Fn3 (Nullable String) String String Props
 
 -- | Create a property from an event handler.
 foreign import handlerProp :: forall eff event. Fn2 String (event -> Eff eff Unit) Props

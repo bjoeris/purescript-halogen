@@ -24,6 +24,13 @@ exports.attr = function (key, value) {
   return props;
 };
 
+// jshint maxparams: 2
+exports.attrNS = function (ns, key, value) {
+  var props = {};
+  props[key] = attributeHook(ns, value);
+  return props;
+};
+
 function HandlerHook (key, f) {
   this.key = key;
   this.callback = function (e) {
